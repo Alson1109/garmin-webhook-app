@@ -1,0 +1,26 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://garmin-webhook-app-production.up.railway.app/actuator/health
+  body: none
+  auth: none
+}
+
+docs {
+  # Health Check Endpoint
+  
+  Tests if the application is running and healthy.
+  
+  **Expected Response:**
+  ```json
+  {
+    "status": "UP"
+  }
+  ```
+  
+  **Status Code:** 200 OK
+}

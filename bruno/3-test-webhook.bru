@@ -1,0 +1,41 @@
+meta {
+  name: Test Webhook
+  type: http
+  seq: 3
+}
+
+post {
+  url: https://garmin-webhook-app-production.up.railway.app/api/garmin/dailies
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "test": "webhook",
+    "source": "bruno-testing"
+  }
+}
+
+docs {
+  # Test Webhook Endpoint
+  
+  Tests the webhook endpoint that receives data from Garmin.
+  
+  **Expected Response:**
+  ```json
+  {
+    "status": "success",
+    "message": "Dailies push processed successfully",
+    "timestamp": 1759824116901
+  }
+  ```
+  
+  **Status Code:** 200 OK
+  
+  **Note:** This is the same endpoint Garmin uses to send real step data.
+}

@@ -1,0 +1,45 @@
+meta {
+  name: Get Step Data
+  type: http
+  seq: 4
+}
+
+get {
+  url: https://garmin-webhook-app-production.up.railway.app/api/garmin/steps?testUserId=7c3af2e0-f55b-4526-b128-e91bbf749049
+  body: none
+  auth: none
+}
+
+params:query {
+  testUserId: 7c3af2e0-f55b-4526-b128-e91bbf749049
+}
+
+docs {
+  # Get Step Data Endpoint
+  
+  Retrieves step data for a specific user.
+  
+  **Parameters:**
+  - `testUserId`: The user ID to get steps for
+  
+  **Expected Response (if working):**
+  ```json
+  {
+    "totalSteps": 2146,
+    "records": [
+      {
+        "userId": "7c3af2e0-f55b-4526-b128-e91bbf749049",
+        "date": "2025-10-07",
+        "steps": 2146,
+        "activeKilocalories": 71,
+        "bmrKilocalories": 1282,
+        "distanceInMeters": 1709.0,
+        "durationInSeconds": 50100
+      }
+    ]
+  }
+  ```
+  
+  **Current Status:** May return 500 error (database issue)
+  **Webhook Status:** ✅ Data is being received (2,146 steps confirmed)
+}

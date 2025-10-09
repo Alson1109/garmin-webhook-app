@@ -1,0 +1,29 @@
+meta {
+  name: OAuth Login
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://garmin-webhook-app-production.up.railway.app/api/garmin/auth/login
+  body: none
+  auth: none
+}
+
+docs {
+  # OAuth Login Endpoint
+  
+  Initiates the Garmin OAuth flow. This will redirect to Garmin's login page.
+  
+  **Note:** This endpoint returns a redirect (302), so you may need to open it in a browser to complete the OAuth flow.
+  
+  **Expected Response:**
+  - Status Code: 302 (Redirect)
+  - Location: Garmin OAuth URL
+  
+  **Usage:**
+  - Copy the URL and open in browser
+  - Login with Garmin credentials
+  - Grant permissions
+  - Will redirect back to callback URL
+}

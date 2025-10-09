@@ -1,0 +1,69 @@
+meta {
+  name: Real Garmin Webhook Data
+  type: http
+  seq: 6
+}
+
+post {
+  url: https://garmin-webhook-app-production.up.railway.app/api/garmin/dailies
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "dailies": [
+      {
+        "userId": "7c3af2e0-f55b-4526-b128-e91bbf749049",
+        "summaryId": "test-summary-id",
+        "calendarDate": "2025-10-07",
+        "activityType": "GENERIC",
+        "activeKilocalories": 71,
+        "bmrKilocalories": 1282,
+        "steps": 2146,
+        "distanceInMeters": 1709.0,
+        "durationInSeconds": 50100,
+        "activeTimeInSeconds": 2667,
+        "startTimeInSeconds": 1759766400,
+        "startTimeOffsetInSeconds": 28800,
+        "moderateIntensityDurationInSeconds": 0,
+        "vigorousIntensityDurationInSeconds": 0,
+        "minHeartRateInBeatsPerMinute": 60,
+        "maxHeartRateInBeatsPerMinute": 107,
+        "averageHeartRateInBeatsPerMinute": 75,
+        "restingHeartRateInBeatsPerMinute": 66,
+        "stepsGoal": 10000,
+        "intensityDurationGoalInSeconds": 9000,
+        "floorsClimbedGoal": 10,
+        "averageStressLevel": 28,
+        "maxStressLevel": 87,
+        "bodyBatteryChargedValue": 0,
+        "bodyBatteryDrainedValue": 31
+      }
+    ]
+  }
+}
+
+docs {
+  # Real Garmin Webhook Data Test
+  
+  Tests the webhook with actual data structure that Garmin sends.
+  This simulates the real webhook data that was received (2,146 steps).
+  
+  **Expected Response:**
+  ```json
+  {
+    "status": "success",
+    "message": "Dailies push processed successfully",
+    "timestamp": 1759824116901
+  }
+  ```
+  
+  **Status Code:** 200 OK
+  
+  **Data Source:** This is the actual structure from your real Garmin data!
+}

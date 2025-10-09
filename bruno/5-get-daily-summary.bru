@@ -1,0 +1,48 @@
+meta {
+  name: Get Daily Summary
+  type: http
+  seq: 5
+}
+
+get {
+  url: https://garmin-webhook-app-production.up.railway.app/api/garmin/dailies?testUserId=7c3af2e0-f55b-4526-b128-e91bbf749049
+  body: none
+  auth: none
+}
+
+params:query {
+  testUserId: 7c3af2e0-f55b-4526-b128-e91bbf749049
+}
+
+docs {
+  # Get Daily Summary Endpoint
+  
+  Retrieves comprehensive daily health data for a user.
+  
+  **Parameters:**
+  - `testUserId`: The user ID to get daily summary for
+  
+  **Expected Response:**
+  ```json
+  {
+    "userId": "7c3af2e0-f55b-4526-b128-e91bbf749049",
+    "date": "2025-10-07",
+    "steps": 2146,
+    "calories": 71,
+    "distance": 1709.0,
+    "heartRate": {
+      "min": 60,
+      "max": 107,
+      "average": 75,
+      "resting": 66
+    },
+    "stress": {
+      "average": 28,
+      "max": 87
+    }
+  }
+  ```
+  
+  **Current Status:** May return 500 error (database issue)
+  **Note:** More comprehensive than step data endpoint
+}

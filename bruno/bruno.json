@@ -1,0 +1,42 @@
+meta {
+  {
+
+  name: Garmin Health API  "version": "1",
+
+  type: collection  "name": "Garmin",
+
+  version: 1.0.0  "type": "collection",
+  }  "ignore": [
+    "node_modules",
+
+docs {
+      ".git"
+
+  # Garmin Health API Testing Collection
+    ]
+  }
+  This Bruno collection contains all the endpoints for testing the Garmin Health API integration.
+  
+  ## Current Status
+  - ✅ Railway Deployment: Working
+  - ✅ Webhook Reception: Active (2,
+  146 steps confirmed)
+  - ✅ OAuth Flow: Functional
+  
+  ## Base URL
+  ```
+  https: //garmin-webhook-app-production.up.railway.app
+  ```
+  
+  ## Test User ID
+  ```
+  7c3af2e0-f55b-4526-b128-e91bbf749049
+  ```
+  
+  ## Testing Order
+  1. Test health check
+  2. Test OAuth login (browser required)
+  3. Test webhook endpoint
+  4. Get step data
+  5. Get daily summary
+}
