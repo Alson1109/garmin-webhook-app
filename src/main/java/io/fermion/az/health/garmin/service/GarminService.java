@@ -6,28 +6,33 @@ import io.fermion.az.health.garmin.exception.GarminApiException;
 import io.fermion.az.health.garmin.repo.GarminUserTokensRepository;
 import io.fermion.az.health.garmin.repo.OidcStateRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Base64;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class GarminService {
 
-  private final OidcStateRepository oidcStateRepo;
+  private final OidcStateRepository oidcStateRepository;
   private final GarminUserTokensRepository garminUserTokensRepository;
   private final RestTemplate restTemplate;
+  private static final Logger log = LoggerFactory.getLogger(GarminService.class);
 
   @Value("${garmin.client.id}")
   private String clientId;
@@ -49,14 +54,14 @@ public class GarminService {
 
   @Transactional
   public GarminUserTokens exchangeCodeForToken(AuthorizationRequest request) {
-    OidcState oidcState = oidcStateRepo.findById(request.getState())
+    OidcState oidcState = oidcStateRepository.findById(request.getState())
         .orElseThrow(() -> new GarminApiException("Invalid state: " + request.getState()));
 
     String debiUserId = oidcState.getUserId();
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-    String auth = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
+    String auth = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
     headers.set("Authorization", "Basic " + auth);
 
     String body = String.format(
@@ -186,5 +191,58 @@ public class GarminService {
     return getDailiesSummary(accessToken, today);
   }
 
-  // Add other Garmin API methods as needed
+  public String generateAuthorizationUrl() {
+    // Generate the Garmin OAuth authorization URL
+    String clientId = "your-garmin-client-id"; // Get from config
+    String redirectUri = "your-redirect-uri"; // Get from config
+    String state = generateRandomState(); // Generate a random state parameter
+    String codeVerifier = generateCodeVerifier(); // Generate PKCE code verifier
+
+    // Store state and codeVerifier for later validation
+    // oidcStateRepository.save(new OidcState(state, codeVerifier));
+
+    String codeChallenge = generateCodeChallenge(codeVerifier);
+
+    return String.format(
+        "https://connect.garmin.com/oauth2/authorization?response_type=code&client_id=%s&redirect_uri=%s&state=%s&code_challenge=%s&code_challenge_method=S256",
+        clientId, redirectUri, state, codeChallenge);
+  }
+
+  public void handleOAuthCallback(String code, String state) {
+    // Validate the state parameter
+    // OidcState oidcState = oidcStateRepository.findById(state).orElseThrow();
+
+    // Exchange authorization code for tokens
+    // TokenResponse tokens = exchangeCodeForTokens(code,
+    // oidcState.getCodeVerifier());
+
+    // Store tokens in database
+    // garminUserTokensRepository.save(convertToEntity(tokens));
+
+    log.info("OAuth callback received - code: {}, state: {}", code, state);
+  }
+
+  // Helper methods
+  private String generateRandomState() {
+    return UUID.randomUUID().toString();
+  }
+
+  private String generateCodeVerifier() {
+    SecureRandom secureRandom = new SecureRandom();
+    byte[] codeVerifier = new byte[32];
+    secureRandom.nextBytes(codeVerifier);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(codeVerifier);
+  }
+
+  private String generateCodeChallenge(String codeVerifier) {
+    try {
+      byte[] bytes = codeVerifier.getBytes(StandardCharsets.US_ASCII);
+      MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+      messageDigest.update(bytes, 0, bytes.length);
+      byte[] digest = messageDigest.digest();
+      return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException("SHA-256 algorithm not available", e);
+    }
+  }
 }
