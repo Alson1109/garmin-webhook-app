@@ -191,35 +191,33 @@ public class GarminService {
     return getDailiesSummary(accessToken, today);
   }
 
-  public String generateAuthorizationUrl() {
-    // Generate the Garmin OAuth authorization URL
-    String clientId = "your-garmin-client-id"; // Get from config
-    String redirectUri = "your-redirect-uri"; // Get from config
-    String state = generateRandomState(); // Generate a random state parameter
-    String codeVerifier = generateCodeVerifier(); // Generate PKCE code verifier
+  public String generateAuthorizationUrl(String userId) {
+    String state = generateRandomState();
+    String codeVerifier = generateCodeVerifier();
 
-    // Store state and codeVerifier for later validation
-    // oidcStateRepository.save(new OidcState(state, codeVerifier));
+    // Store state and codeVerifier with userId for later validation
+    OidcState oidcState = new OidcState();
+    oidcState.setState(state);
+    oidcState.setCodeVerifier(codeVerifier);
+    oidcState.setUserId(userId);
+    oidcState.setCreatedAt(LocalDateTime.now());
+    oidcStateRepository.save(oidcState);
 
     String codeChallenge = generateCodeChallenge(codeVerifier);
 
     return String.format(
-        "https://connect.garmin.com/oauth2/authorization?response_type=code&client_id=%s&redirect_uri=%s&state=%s&code_challenge=%s&code_challenge_method=S256",
+        "https://connect.garmin.com/oauth2/authorization?response_type=code&client_id=%s&redirect_uri=%s&state=%s&code_challenge=%s&code_challenge_method=S256&scope=health",
         clientId, redirectUri, state, codeChallenge);
   }
 
-  public void handleOAuthCallback(String code, String state) {
-    // Validate the state parameter
-    // OidcState oidcState = oidcStateRepository.findById(state).orElseThrow();
+  public GarminUserTokens handleOAuthCallback(String code, String state) {
+    // Create AuthorizationRequest
+    AuthorizationRequest request = new AuthorizationRequest();
+    request.setCode(code);
+    request.setState(state);
 
     // Exchange authorization code for tokens
-    // TokenResponse tokens = exchangeCodeForTokens(code,
-    // oidcState.getCodeVerifier());
-
-    // Store tokens in database
-    // garminUserTokensRepository.save(convertToEntity(tokens));
-
-    log.info("OAuth callback received - code: {}, state: {}", code, state);
+    return exchangeCodeForToken(request);
   }
 
   // Helper methods
