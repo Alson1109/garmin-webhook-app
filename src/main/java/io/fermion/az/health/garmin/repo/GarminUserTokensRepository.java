@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-public interface UserTokenRepo extends JpaRepository<GarminUserTokens, GarminUserTokensId> {
+public interface GarminUserTokensRepository extends JpaRepository<GarminUserTokens, GarminUserTokensId> {
   @Query(value = "SELECT u FROM GarminUserTokens u WHERE u.id.userId = ?1")
   List<GarminUserTokens> findAllByUserId(String userId);
 
