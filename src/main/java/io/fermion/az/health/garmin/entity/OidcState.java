@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Table(name = "oidc_state")
 @Data
 public class OidcState {
+    
     @Id
     private String state;
     
