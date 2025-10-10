@@ -1,11 +1,7 @@
 package io.fermion.az.health.garmin.service;
 
-import io.fermion.az.health.garmin.dto.AuthorizationRequest;
-import io.fermion.az.health.garmin.dto.TokenResponse;
-import io.fermion.az.health.garmin.dto.UserIdResponse;
-import io.fermion.az.health.garmin.entity.GarminUserTokens;
-import io.fermion.az.health.garmin.entity.GarminUserTokensId;
-import io.fermion.az.health.garmin.entity.OidcState;
+import io.fermion.az.health.garmin.dto.*;
+import io.fermion.az.health.garmin.entity.*;
 import io.fermion.az.health.garmin.exception.GarminApiException;
 import io.fermion.az.health.garmin.repo.GarminUserTokensRepository;
 import io.fermion.az.health.garmin.repo.OidcStateRepository;
@@ -13,11 +9,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,7 +26,7 @@ import java.util.List;
 public class GarminService {
 
   private final OidcStateRepository oidcStateRepo;
-  private final GarminUserTokensRepository userTokenRepo;
+  private final GarminUserTokensRepository garminUserTokensRepository;
   private final RestTemplate restTemplate;
 
   @Value("${garmin.client.id}")
@@ -45,6 +43,9 @@ public class GarminService {
 
   @Value("${garmin.user.id.url}")
   private String userIdUrl;
+
+  @Value("${garmin.dailies.url}")
+  private String dailiesUrl;
 
   @Transactional
   public GarminUserTokens exchangeCodeForToken(AuthorizationRequest request) {
@@ -65,7 +66,6 @@ public class GarminService {
     HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
     log.info("Exchanging code for token at URL: {}", tokenUrl);
-    log.info("Request body: {}", body);
 
     try {
       ResponseEntity<TokenResponse> response = restTemplate.postForEntity(
@@ -77,7 +77,7 @@ public class GarminService {
 
         UserIdResponse userIdResponse = fetchUserId(tokenResponse.getAccessToken());
         String garminUserId = userIdResponse.getUserId();
-        List<GarminUserTokens> existingTokens = userTokenRepo.findAllByUserId(debiUserId);
+        List<GarminUserTokens> existingTokens = garminUserTokensRepository.findByIdUserId(debiUserId);
 
         GarminUserTokens userTokenToSave = null;
         boolean isExisting = false;
@@ -97,7 +97,7 @@ public class GarminService {
             // Different Garmin account: disconnect
             existing.setConnectStatus(GarminUserTokens.ConnectStatus.DISCONNECTED);
             existing.setLastModifiedAt(LocalDateTime.now());
-            userTokenRepo.save(existing);
+            garminUserTokensRepository.save(existing);
           }
         }
 
@@ -119,7 +119,7 @@ public class GarminService {
           userTokenToSave.setConnectStatus(GarminUserTokens.ConnectStatus.CONNECTED);
         }
 
-        return userTokenRepo.save(userTokenToSave);
+        return garminUserTokensRepository.save(userTokenToSave);
       } else {
         log.error("Token exchange failed with status: {}", response.getStatusCode());
         throw new GarminApiException("Failed to exchange code for token: HTTP " + response.getStatusCode());
@@ -151,5 +151,40 @@ public class GarminService {
     }
   }
 
-  // Add other service methods as needed...
+  public DailiesSummary[] getDailiesSummary(String accessToken, LocalDate date) {
+    try {
+      String apiUrl = String.format("%s?calendarDate=%s", dailiesUrl, date.toString());
+
+      HttpHeaders headers = new HttpHeaders();
+      headers.set("Authorization", "Bearer " + accessToken);
+      headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+      HttpEntity<String> entity = new HttpEntity<>(headers);
+
+      // FIXED: Using ParameterizedTypeReference to avoid type mismatch
+      ResponseEntity<DailiesSummary[]> response = restTemplate.exchange(
+          apiUrl,
+          HttpMethod.GET,
+          entity,
+          new ParameterizedTypeReference<DailiesSummary[]>() {
+          });
+
+      if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+        return response.getBody();
+      } else {
+        throw new GarminApiException("Failed to fetch dailies summary: HTTP " + response.getStatusCode());
+      }
+
+    } catch (Exception e) {
+      log.error("Error fetching dailies summary: {}", e.getMessage());
+      throw new GarminApiException("Failed to fetch dailies summary: " + e.getMessage());
+    }
+  }
+
+  public DailiesSummary[] getTodayDailiesSummary(String accessToken) {
+    LocalDate today = LocalDate.now();
+    return getDailiesSummary(accessToken, today);
+  }
+
+  // Add other Garmin API methods as needed
 }
