@@ -8,8 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/garmin")
@@ -18,19 +21,67 @@ public class GarminController {
 
   private final GarminService garminService;
 
-  // Auth endpoints - FIXED: Added userId parameter
+  /**
+   * Step 1: Initiate Garmin OAuth flow
+   * This generates the authorization URL that redirects users to Garmin's consent page
+   */
   @GetMapping("/auth")
-  public ResponseEntity<String> initiateGarminAuth(@RequestParam String userId) {
+  public ResponseEntity<Map<String, String>> initiateGarminAuth(@RequestParam String userId) {
     String authUrl = garminService.generateAuthorizationUrl(userId);
-    return ResponseEntity.ok(authUrl);
+    
+    Map<String, String> response = new HashMap<>();
+    response.put("authorizationUrl", authUrl);
+    response.put("userId", userId);
+    response.put("instructions", "User must visit this URL to authorize Garmin Connect data access");
+    
+    return ResponseEntity.ok(response);
   }
 
+  /**
+   * Alternative: Direct redirect to Garmin authorization
+   * Usage: GET /api/garmin/auth/redirect?userId=your-user-id
+   */
+  @GetMapping("/auth/redirect")
+  public RedirectView redirectToGarminAuth(@RequestParam String userId) {
+    String authUrl = garminService.generateAuthorizationUrl(userId);
+    return new RedirectView(authUrl);
+  }
+
+  /**
+   * Step 2: OAuth callback - Garmin redirects here after user authorization
+   * This exchanges the authorization code for access tokens
+   */
   @GetMapping("/auth/callback")
-  public ResponseEntity<String> garminCallback(
+  public ResponseEntity<Map<String, Object>> garminCallback(
       @RequestParam String code,
       @RequestParam String state) {
-    GarminUserTokens tokens = garminService.handleOAuthCallback(code, state);
-    return ResponseEntity.ok("Authentication successful! User ID: " + tokens.getId().getUserId());
+    
+    try {
+      GarminUserTokens tokens = garminService.handleOAuthCallback(code, state);
+      
+      Map<String, Object> response = new HashMap<>();
+      response.put("success", true);
+      response.put("message", "Successfully connected to Garmin Connect!");
+      response.put("userId", tokens.getId().getUserId());
+      response.put("garminUserId", tokens.getId().getGarminUserId());
+      response.put("status", tokens.getConnectStatus());
+      
+      return ResponseEntity.ok(response);
+    } catch (Exception e) {
+      Map<String, Object> errorResponse = new HashMap<>();
+      errorResponse.put("success", false);
+      errorResponse.put("error", e.getMessage());
+      return ResponseEntity.badRequest().body(errorResponse);
+    }
+  }
+
+  /**
+   * Check connection status for a user
+   */
+  @GetMapping("/status")
+  public ResponseEntity<Map<String, Object>> getConnectionStatus(@RequestParam String userId) {
+    Map<String, Object> status = garminService.getConnectionStatus(userId);
+    return ResponseEntity.ok(status);
   }
 
   // Existing endpoints
@@ -41,24 +92,26 @@ public class GarminController {
   }
 
   @GetMapping("/dailies/today")
-  public ResponseEntity<DailiesSummary[]> getTodayDailies(@RequestHeader("Authorization") String accessToken) {
-    String token = accessToken.replace("Bearer ", "");
-    DailiesSummary[] dailies = garminService.getTodayDailiesSummary(token);
+  public ResponseEntity<DailiesSummary[]> getTodayDailies(
+      @RequestParam String userId) {
+    DailiesSummary[] dailies = garminService.getTodayDailiesSummaryForUser(userId);
     return ResponseEntity.ok(dailies);
   }
 
   @GetMapping("/dailies")
   public ResponseEntity<DailiesSummary[]> getDailiesByDate(
-      @RequestHeader("Authorization") String accessToken,
+      @RequestParam String userId,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-    String token = accessToken.replace("Bearer ", "");
-    DailiesSummary[] dailies = garminService.getDailiesSummary(token, date);
+    DailiesSummary[] dailies = garminService.getDailiesSummaryForUser(userId, date);
     return ResponseEntity.ok(dailies);
   }
 
-  // Health check endpoint to verify deployment
+  // Health check endpoint
   @GetMapping("/health")
-  public ResponseEntity<String> health() {
-    return ResponseEntity.ok("Garmin Service is running!");
+  public ResponseEntity<Map<String, String>> health() {
+    Map<String, String> health = new HashMap<>();
+    health.put("status", "UP");
+    health.put("service", "Garmin Integration Service");
+    return ResponseEntity.ok(health);
   }
 }
