@@ -106,7 +106,5 @@ public ResponseEntity<?> handleCallback(
         log.error("Error during Garmin callback handling", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Failed to connect Garmin account: " + e.getMessage()));
-    }
-}
-    }
+    }    
 }
