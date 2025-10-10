@@ -59,7 +59,7 @@ public class GarminController {
         }
     }
 
-    @PostMapping("/callback")
+    @RequestMapping(value = "/callback", method = {RequestMethod.GET, RequestMethod.POST})
     public ResponseEntity<?> handleCallback(
             @RequestParam("code") String code,
             @RequestParam("state") String state) {
