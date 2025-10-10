@@ -22,7 +22,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map; 
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Base64;
 
 @Service
