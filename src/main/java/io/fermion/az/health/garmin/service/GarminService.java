@@ -253,9 +253,17 @@ public class GarminService {
     String accessToken = userToken.getAccessToken();
 
     HttpHeaders headers = new HttpHeaders();
-    headers.set("Authorization", "Bearer " + accessToken);
-    log.info(headers.toString());
-    HttpEntity<String> entity = new HttpEntity<>(headers);
+headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+String auth = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
+headers.set("Authorization", "Basic " + auth);
+
+String body = String.format(
+    "grant_type=authorization_code&code=%s&state=%s&code_verifier=%s&redirect_uri=%s",
+    request.getCode(), request.getState(), oidcState.getCodeVerifier(), redirectUri);
+
+HttpEntity<String> entity = new HttpEntity<>(body, headers);
+ResponseEntity<TokenResponse> response = restTemplate.postForEntity(
+    tokenUrl, entity, TokenResponse.class);
 
     // Validate and set default date range if not provided
     if (uploadStartTimeInSeconds == null || uploadEndTimeInSeconds == null) {
