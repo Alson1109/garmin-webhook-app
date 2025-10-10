@@ -18,18 +18,19 @@ public class GarminController {
 
   private final GarminService garminService;
 
-  // Auth endpoints
+  // Auth endpoints - FIXED: Added userId parameter
   @GetMapping("/auth")
-  public String initiateGarminAuth() {
-    String authUrl = garminService.generateAuthorizationUrl();
-    return "redirect:" + authUrl;
+  public ResponseEntity<String> initiateGarminAuth(@RequestParam String userId) {
+    String authUrl = garminService.generateAuthorizationUrl(userId);
+    return ResponseEntity.ok(authUrl);
   }
 
   @GetMapping("/auth/callback")
-  public String garminCallback(@RequestParam String code,
+  public ResponseEntity<String> garminCallback(
+      @RequestParam String code,
       @RequestParam String state) {
-    garminService.handleOAuthCallback(code, state);
-    return "Authentication successful! You can close this window.";
+    GarminUserTokens tokens = garminService.handleOAuthCallback(code, state);
+    return ResponseEntity.ok("Authentication successful! User ID: " + tokens.getId().getUserId());
   }
 
   // Existing endpoints
@@ -53,5 +54,11 @@ public class GarminController {
     String token = accessToken.replace("Bearer ", "");
     DailiesSummary[] dailies = garminService.getDailiesSummary(token, date);
     return ResponseEntity.ok(dailies);
+  }
+
+  // Health check endpoint to verify deployment
+  @GetMapping("/health")
+  public ResponseEntity<String> health() {
+    return ResponseEntity.ok("Garmin Service is running!");
   }
 }
