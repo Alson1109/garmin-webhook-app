@@ -54,6 +54,17 @@ public class GarminService {
   @Value("${garmin.dailies.url}")
   private String dailiesUrl;
 
+  @PostConstruct
+    public void init() {
+        log.info("=== GARMIN CONFIGURATION ===");
+        log.info("Client ID: {}", clientId);
+        log.info("Redirect URI: {}", redirectUri);
+        log.info("Token URL: {}", tokenUrl);
+        log.info("User ID URL: {}", userIdUrl);
+        log.info("Dailies URL: {}", dailiesUrl);
+        log.info("=== END GARMIN CONFIG ===");
+    }
+  
   @Transactional
   public GarminUserTokens exchangeCodeForToken(AuthorizationRequest request) {
     OidcState oidcState = oidcStateRepository.findById(request.getState())
