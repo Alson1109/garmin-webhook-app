@@ -59,28 +59,54 @@ public class GarminController {
         }
     }
 
-    @RequestMapping(value = "/callback", method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity<?> handleCallback(
-            @RequestParam("code") String code,
-            @RequestParam("state") String state) {
-        try {
-            AuthorizationRequest request = new AuthorizationRequest();
-            request.setCode(code);
-            request.setState(state);
-            log.info("Received callback - code: {}, state: {}", code, state);
-
-            GarminUserTokens garminUserTokens = garminService.exchangeCodeForToken(request);
-            log.info("Successfully exchanged code for token for user: {}", garminUserTokens.getId().getUserId());
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Garmin account connected successfully",
-                "userId", garminUserTokens.getId().getUserId(),
-                "garminUserId", garminUserTokens.getId().getGarminUserId()
-            ));
-        } catch (Exception e) {
-            log.error("Error during Garmin callback handling", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+   @RequestMapping(value = "/callback", method = {RequestMethod.GET, RequestMethod.POST})
+public ResponseEntity<?> handleCallback(
+        @RequestParam(value = "code", required = false) String code,
+        @RequestParam(value = "state", required = false) String state,
+        @RequestBody(required = false) String body) {
+    
+    try {
+        // If code/state are not in params, try to parse from body
+        if (code == null && body != null) {
+            log.info("Attempting to parse code from body: {}", body);
+            // Parse code from form data or JSON body
+            if (body.contains("code=")) {
+                String[] params = body.split("&");
+                for (String param : params) {
+                    if (param.startsWith("code=")) {
+                        code = param.substring(5);
+                    } else if (param.startsWith("state=")) {
+                        state = param.substring(6);
+                    }
+                }
+            }
         }
+
+        if (code == null) {
+            log.error("No authorization code received in callback");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "No authorization code provided"));
+        }
+
+        AuthorizationRequest request = new AuthorizationRequest();
+        request.setCode(code);
+        request.setState(state);
+        log.info("Processing callback - code: {}, state: {}", code, state);
+
+        GarminUserTokens garminUserTokens = garminService.exchangeCodeForToken(request);
+        log.info("Successfully exchanged code for token for user: {}", garminUserTokens.getId().getUserId());
+        
+        return ResponseEntity.ok(Map.of(
+            "message", "Garmin account connected successfully!",
+            "userId", garminUserTokens.getId().getUserId(),
+            "garminUserId", garminUserTokens.getId().getGarminUserId(),
+            "status", "connected"
+        ));
+    } catch (Exception e) {
+        log.error("Error during Garmin callback handling", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to connect Garmin account: " + e.getMessage()));
+    }
+}
     }
 }
