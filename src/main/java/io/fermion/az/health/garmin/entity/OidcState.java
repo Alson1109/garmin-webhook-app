@@ -1,8 +1,7 @@
-// src/main/java/io/fermion/az/health/garmin/entity/OidcState.java
 package io.fermion.az.health.garmin.entity;
 
 import lombok.Data;
-import javax.persistence.*;
+import jakarta.persistence.*;  // ✅ Changed from javax.persistence
 import java.time.LocalDateTime;
 
 @Entity
