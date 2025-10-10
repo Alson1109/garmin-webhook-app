@@ -18,6 +18,21 @@ public class GarminController {
 
   private final GarminService garminService;
 
+  // Auth endpoints
+  @GetMapping("/auth")
+  public String initiateGarminAuth() {
+    String authUrl = garminService.generateAuthorizationUrl();
+    return "redirect:" + authUrl;
+  }
+
+  @GetMapping("/auth/callback")
+  public String garminCallback(@RequestParam String code,
+      @RequestParam String state) {
+    garminService.handleOAuthCallback(code, state);
+    return "Authentication successful! You can close this window.";
+  }
+
+  // Existing endpoints
   @PostMapping("/token")
   public ResponseEntity<GarminUserTokens> exchangeToken(@RequestBody AuthorizationRequest request) {
     GarminUserTokens tokens = garminService.exchangeCodeForToken(request);
@@ -26,7 +41,6 @@ public class GarminController {
 
   @GetMapping("/dailies/today")
   public ResponseEntity<DailiesSummary[]> getTodayDailies(@RequestHeader("Authorization") String accessToken) {
-    // Remove "Bearer " prefix if present
     String token = accessToken.replace("Bearer ", "");
     DailiesSummary[] dailies = garminService.getTodayDailiesSummary(token);
     return ResponseEntity.ok(dailies);
