@@ -186,9 +186,9 @@ public class GarminService {
     }
   }
 
-  public DailiesSummary[] getTodayDailiesSummary(String accessToken) {
+  public DailiesSummary[] getTodayDailiesSummaryForUser(String userId) {
     LocalDate today = LocalDate.now();
-    return getDailiesSummary(accessToken, today);
+    return getDailiesSummaryForUser(userId, today);
   }
 
   public String generateAuthorizationUrl(String userId) {
@@ -243,4 +243,80 @@ public class GarminService {
       throw new RuntimeException("SHA-256 algorithm not available", e);
     }
   }
+
+  public Map<String, Object> getConnectionStatus(String userId) {
+    Map<String, Object> status = new HashMap<>();
+    
+    GarminUserTokens connectedToken = garminUserTokensRepository.findConnectedByUserId(userId);
+    
+    if (connectedToken != null) {
+        status.put("connected", true);
+        status.put("garminUserId", connectedToken.getId().getGarminUserId());
+        status.put("accessTokenExpiry", connectedToken.getAccessTokenExpiry());
+        status.put("needsRefresh", connectedToken.getAccessTokenExpiry().isBefore(LocalDateTime.now()));
+    } else {
+        status.put("connected", false);
+        status.put("message", "No Garmin account connected");
+    }
+    
+    return status;
+  }
+
+  public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
+    GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
+    
+    if (tokens == null) {
+        throw new GarminApiException("No connected Garmin account found for user: " + userId);
+    }
+    
+    // Check if token needs refresh
+    if (tokens.getAccessTokenExpiry().isBefore(LocalDateTime.now())) {
+        tokens = refreshAccessToken(tokens);
+    }
+    
+    return getDailiesSummary(tokens.getAccessToken(), date);
+  }
+
+  private GarminUserTokens refreshAccessToken(GarminUserTokens tokens) {
+    if (tokens.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
+        throw new GarminApiException("Refresh token expired. User needs to re-authenticate.");
+    }
+    
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+    String auth = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
+    headers.set("Authorization", "Basic " + auth);
+    
+    String body = String.format(
+        "grant_type=refresh_token&refresh_token=%s",
+        tokens.getRefreshToken()
+    );
+    
+    HttpEntity<String> entity = new HttpEntity<>(body, headers);
+    
+    try {
+        ResponseEntity<TokenResponse> response = restTemplate.postForEntity(
+            tokenUrl, entity, TokenResponse.class);
+        
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            TokenResponse tokenResponse = response.getBody();
+            
+            tokens.setAccessToken(tokenResponse.getAccessToken());
+            tokens.setAccessTokenExpiry(LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn()));
+            tokens.setLastModifiedAt(LocalDateTime.now());
+            
+            if (tokenResponse.getRefreshToken() != null) {
+                tokens.setRefreshToken(tokenResponse.getRefreshToken());
+                tokens.setRefreshTokenExpiry(LocalDateTime.now().plusSeconds(tokenResponse.getRefreshTokenExpiresIn()));
+            }
+            
+            return garminUserTokensRepository.save(tokens);
+        } else {
+            throw new GarminApiException("Token refresh failed: HTTP " + response.getStatusCode());
+        }
+    } catch (Exception e) {
+        log.error("Token refresh error: {}", e.getMessage());
+        throw new GarminApiException("Failed to refresh token: " + e.getMessage());
+    }
+}
 }
