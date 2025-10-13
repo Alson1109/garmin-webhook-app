@@ -34,7 +34,7 @@ public class GarminService {
 
   private final OidcStateRepository oidcStateRepository;
   private final GarminUserTokensRepository garminUserTokensRepository;
-  private final RestTemplate restTemplate;
+  private final RestTemplate restTemplate = new RestTemplate();
   private static final String GARMIN_API_BASE = "https://apis.garmin.com/wellness-api/rest";
   private static final Logger log = LoggerFactory.getLogger(GarminService.class);
 
@@ -150,6 +150,35 @@ public class GarminService {
     }
   }
 
+public void logDailiesSummary(String userId, LocalDate date, String accessToken) {
+        try {
+            long startOfDay = date.atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+            String url = String.format("%s/dailies/%s?uploadStartTimeInSeconds=%d",
+                    GARMIN_API_BASE, userId, startOfDay);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(accessToken);
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, Map.class
+            );
+
+            Map<String, Object> summary = response.getBody();
+
+            if (summary != null) {
+                log.info("✅ Garmin Daily Summary for user {} on {}: {}", userId, date, summary);
+            } else {
+                log.warn("⚠️ No Garmin daily summary data found for user {} on {}", userId, date);
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Error fetching Garmin daily summary: {}", e.getMessage(), e);
+        }
+    }
+  
   private UserIdResponse fetchUserId(String accessToken) {
     HttpHeaders headers = new HttpHeaders();
     headers.set("Authorization", "Bearer " + accessToken);
