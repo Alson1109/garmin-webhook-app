@@ -333,7 +333,7 @@ public class GarminService {
 
     // ✅ Construct authorization URL
     return String.format(
-        "https://connect.garmin.com/oauth2/authorization" +
+        "https://connect.garmin.com/oauth2Confirm" +
         "?response_type=code" +
         "&client_id=%s" +
         "&redirect_uri=%s" +
