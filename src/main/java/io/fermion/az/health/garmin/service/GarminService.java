@@ -87,37 +87,48 @@ public class GarminService {
 
     String debiUserId = oidcState.getUserId();
 
+    // === Set up HTTP headers ===
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-    String auth = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes(StandardCharsets.UTF_8));
-    headers.set("Authorization", "Basic " + auth);
+    headers.setBasicAuth(clientId, clientSecret);
 
-    // ✅ Garmin requires exactly these 4 fields (no state)
-    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-    params.add("grant_type", "authorization_code");
-    params.add("code", request.getCode());
-    params.add("redirect_uri", redirectUri);
-    params.add("code_verifier", oidcState.getCodeVerifier());
+    // === Prepare body ===
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("client_id", clientId);
+    body.add("code", request.getCode());
+    body.add("code_verifier", oidcState.getCodeVerifier());
+    body.add("grant_type", "authorization_code");
+    body.add("redirect_uri", redirectUri);
 
-    HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(params, headers);
-    log.info("📡 Exchanging code for token at Garmin endpoint: {}", tokenUrl);
+    HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(body, headers);
+
+    log.info("📡 Exchanging authorization code for access token at Garmin endpoint: https://connect.garmin.com/oauth2/token");
 
     try {
         ResponseEntity<TokenResponse> response = restTemplate.exchange(
-                tokenUrl, HttpMethod.POST, entity, TokenResponse.class);
+                "https://connect.garmin.com/oauth2/token",
+                HttpMethod.POST,
+                entity,
+                TokenResponse.class
+        );
 
         if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
             TokenResponse tokenResponse = response.getBody();
             log.info("✅ Successfully received tokens from Garmin");
+            log.info("Access Token: {}", tokenResponse.getAccessToken());
+            log.info("Refresh Token: {}", tokenResponse.getRefreshToken());
 
+            // === Fetch Garmin userId using the new access token ===
             UserIdResponse userIdResponse = fetchUserId(tokenResponse.getAccessToken());
             String garminUserId = userIdResponse.getUserId();
+            log.info("✅ Garmin User ID: {}", garminUserId);
 
-            GarminUserTokens tokens = new GarminUserTokens();
+            // === Save tokens to repository ===
             GarminUserTokensId tokenId = new GarminUserTokensId();
             tokenId.setUserId(debiUserId);
             tokenId.setGarminUserId(garminUserId);
 
+            GarminUserTokens tokens = new GarminUserTokens();
             tokens.setId(tokenId);
             tokens.setAccessToken(tokenResponse.getAccessToken());
             tokens.setRefreshToken(tokenResponse.getRefreshToken());
@@ -130,10 +141,12 @@ public class GarminService {
             garminUserTokensRepository.save(tokens);
             return tokens;
         } else {
+            log.error("❌ Garmin token exchange failed, HTTP {}", response.getStatusCode());
             throw new GarminApiException("Failed to exchange code for token: HTTP " + response.getStatusCode());
         }
+
     } catch (Exception e) {
-        log.error("❌ Token exchange error: {}", e.getMessage(), e);
+        log.error("❌ Garmin token exchange error: {}", e.getMessage(), e);
         throw new GarminApiException("Token exchange failed: " + e.getMessage());
     }
 }
