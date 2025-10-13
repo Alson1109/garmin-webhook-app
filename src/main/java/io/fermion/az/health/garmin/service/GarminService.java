@@ -1,3 +1,40 @@
+package io.fermion.az.health.garmin.service;
+
+import io.fermion.az.health.garmin.dto.AuthorizationRequest;
+import io.fermion.az.health.garmin.dto.DailiesSummary;
+import io.fermion.az.health.garmin.dto.TokenResponse;
+import io.fermion.az.health.garmin.dto.UserIdResponse;
+import io.fermion.az.health.garmin.entity.GarminUserTokens;
+import io.fermion.az.health.garmin.entity.GarminUserTokensId;
+import io.fermion.az.health.garmin.entity.OidcState;
+import io.fermion.az.health.garmin.exception.GarminApiException;
+import io.fermion.az.health.garmin.repo.GarminUserTokensRepository;
+import io.fermion.az.health.garmin.repo.OidcStateRepository;
+
+import lombok.RequiredArgsConstructor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
+
+import jakarta.annotation.PostConstruct;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+
+import java.util.Base64;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
