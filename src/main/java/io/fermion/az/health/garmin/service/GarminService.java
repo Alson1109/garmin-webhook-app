@@ -290,29 +290,44 @@ public class GarminService {
     // OAUTH URL BUILDER
     // ======================
 
-    public String generateAuthorizationUrl(String userId) {
-        String state = UUID.randomUUID().toString();
-        String codeVerifier = generateCodeVerifier();
-        String codeChallenge = generateCodeChallenge(codeVerifier);
+   public String generateAuthorizationUrl(String userId) {
+    String state = generateRandomState();
+    String codeVerifier = generateCodeVerifier();
 
-        OidcState oidcState = new OidcState();
-        oidcState.setState(state);
-        oidcState.setCodeVerifier(codeVerifier);
-        oidcState.setUserId(userId);
-        oidcState.setCreatedAt(LocalDateTime.now());
-        oidcStateRepository.save(oidcState);
+    // Store state and codeVerifier with userId for later validation
+    OidcState oidcState = new OidcState();
+    oidcState.setState(state);
+    oidcState.setCodeVerifier(codeVerifier);
+    oidcState.setUserId(userId);
+    oidcState.setCreatedAt(LocalDateTime.now());
+    oidcStateRepository.save(oidcState);
 
-        return String.format(
-            "https://connect.garmin.com/oauth2/authorization?response_type=code&client_id=%s&redirect_uri=%s&state=%s&code_challenge=%s&code_challenge_method=S256&scope=health",
-            clientId, redirectUri, state, codeChallenge);
-    }
+    String codeChallenge = generateCodeChallenge(codeVerifier);
 
-    public GarminUserTokens handleOAuthCallback(String code, String state) {
-        AuthorizationRequest request = new AuthorizationRequest();
-        request.setCode(code);
-        request.setState(state);
-        return exchangeCodeForToken(request);
-    }
+    // ✅ Use correct Garmin Wellness API scopes
+    String scopes = String.join(" ",
+        "daily",                // daily summary (steps, distance, etc.)
+        "activity",             // activity data
+        "stress",               // stress level data
+        "sleep",                // sleep data
+        "heart_rate",           // heart rate data
+        "respiration",          // respiration rate
+        "body_composition"      // weight, body fat, etc.
+    );
+
+    // ✅ Construct authorization URL
+    return String.format(
+        "https://connect.garmin.com/oauth2/authorization" +
+        "?response_type=code" +
+        "&client_id=%s" +
+        "&redirect_uri=%s" +
+        "&state=%s" +
+        "&code_challenge=%s" +
+        "&code_challenge_method=S256" +
+        "&scope=%s",
+        clientId, redirectUri, state, codeChallenge, scopes
+    );
+}
 
     // ======================
     // HELPERS
