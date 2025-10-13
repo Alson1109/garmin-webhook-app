@@ -170,22 +170,6 @@ public class GarminService {
     }
   }
 
-  public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
-    GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
-    
-    if (tokens == null) {
-        throw new GarminApiException("No connected Garmin account found for user: " + userId + ". Please authenticate first.");
-    }
-    
-    // Check if token needs refresh
-    if (tokens.getAccessTokenExpiry().isBefore(LocalDateTime.now())) {
-        log.info("Access token expired, refreshing...");
-        tokens = refreshAccessToken(tokens);
-    }
-    
-    return getDailiesSummary(tokens.getAccessToken(), date);
-}
-
   public DailiesSummary[] getTodayDailiesSummaryForUser(String userId) {
     LocalDate today = LocalDate.now();
     return getDailiesSummaryForUser(userId, today);
