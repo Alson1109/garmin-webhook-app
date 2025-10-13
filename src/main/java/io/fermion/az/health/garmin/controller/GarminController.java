@@ -258,6 +258,33 @@ public class GarminController {
     return ResponseEntity.ok(status);
   }
 
+    @GetMapping("/test-log")
+  public ResponseEntity<Map<String, Object>> testLog(
+      @RequestParam String userId,
+      @RequestParam String accessToken,
+      @RequestParam(required = false)
+      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+  ) {
+    if (date == null) date = LocalDate.now();
+    log.info("🧪 [TEST] Triggering Garmin daily summary log for user {} on {}", userId, date);
+
+    try {
+      garminService.logDailiesSummary(userId, date, accessToken);
+      return ResponseEntity.ok(Map.of(
+          "success", true,
+          "message", "✅ Garmin data fetch triggered — check Railway logs for output",
+          "userId", userId,
+          "date", date.toString()
+      ));
+    } catch (Exception e) {
+      log.error("❌ Error during Garmin log test for user {}: {}", userId, e.getMessage(), e);
+      return ResponseEntity.internalServerError().body(Map.of(
+          "success", false,
+          "error", e.getMessage()
+      ));
+    }
+  }
+
   /**
    * Test endpoint
    */
