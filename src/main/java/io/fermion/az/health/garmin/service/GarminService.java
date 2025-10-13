@@ -170,40 +170,26 @@ public class GarminService {
     }
   }
 
-  public DailiesSummary[] getDailiesSummary(String accessToken, LocalDate date) {
-    try {
-      String apiUrl = String.format("%s?calendarDate=%s", dailiesUrl, date.toString());
-
-      HttpHeaders headers = new HttpHeaders();
-      headers.set("Authorization", "Bearer " + accessToken);
-      headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-
-      HttpEntity<String> entity = new HttpEntity<>(headers);
-
-      // FIXED: Using ParameterizedTypeReference to avoid type mismatch
-      ResponseEntity<DailiesSummary[]> response = restTemplate.exchange(
-          apiUrl,
-          HttpMethod.GET,
-          entity,
-          new ParameterizedTypeReference<DailiesSummary[]>() {
-          });
-
-      if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-        return response.getBody();
-      } else {
-        throw new GarminApiException("Failed to fetch dailies summary: HTTP " + response.getStatusCode());
-      }
-
-    } catch (Exception e) {
-      log.error("Error fetching dailies summary: {}", e.getMessage());
-      throw new GarminApiException("Failed to fetch dailies summary: " + e.getMessage());
+  public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
+    GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
+    
+    if (tokens == null) {
+        throw new GarminApiException("No connected Garmin account found for user: " + userId + ". Please authenticate first.");
     }
-  }
+    
+    // Check if token needs refresh
+    if (tokens.getAccessTokenExpiry().isBefore(LocalDateTime.now())) {
+        log.info("Access token expired, refreshing...");
+        tokens = refreshAccessToken(tokens);
+    }
+    
+    return getDailiesSummary(tokens.getAccessToken(), date);
+}
 
   public DailiesSummary[] getTodayDailiesSummaryForUser(String userId) {
     LocalDate today = LocalDate.now();
     return getDailiesSummaryForUser(userId, today);
-  }
+}
 
   public String generateAuthorizationUrl(String userId) {
     String state = generateRandomState();
@@ -270,11 +256,11 @@ public class GarminService {
         status.put("needsRefresh", connectedToken.getAccessTokenExpiry().isBefore(LocalDateTime.now()));
     } else {
         status.put("connected", false);
-        status.put("message", "No Garmin account connected");
+        status.put("message", "No Garmin account connected. Please authenticate first.");
     }
     
     return status;
-  }
+}
 
   public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
     GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
