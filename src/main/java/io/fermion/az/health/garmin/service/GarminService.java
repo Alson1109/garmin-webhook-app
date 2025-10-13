@@ -35,6 +35,7 @@ public class GarminService {
   private final OidcStateRepository oidcStateRepository;
   private final GarminUserTokensRepository garminUserTokensRepository;
   private final RestTemplate restTemplate;
+  private static final String GARMIN_API_BASE = "https://apis.garmin.com/wellness-api/rest";
   private static final Logger log = LoggerFactory.getLogger(GarminService.class);
 
   @Value("${garmin.client.id}")
@@ -245,6 +246,25 @@ public class GarminService {
     
     return status;
 }
+
+  public Map<String, Object> getDailiesSummary(String userId, LocalDate date, String accessToken) {
+        // Convert date to Garmin’s required timestamp (epoch seconds)
+        long startOfDay = date.atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+
+        // Example endpoint: /dailies/{userId}?uploadStartTimeInSeconds={timestamp}
+        String url = String.format("%s/dailies/%s?uploadStartTimeInSeconds=%d",
+                GARMIN_API_BASE, userId, startOfDay);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + accessToken);  // for OAuth 2.0 tokens
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+        return response.getBody(); // Contains fields like steps, distance, etc.
+    }
 
   public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
     GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
