@@ -1,0 +1,9 @@
+[build]
+builder = "paketobuildpacks/builder:base"
+buildCommand = "mvn clean package -DskipTests"
+env = { BP_JVM_VERSION = "17" }
+
+[deploy]
+startCommand = "java -jar target/*.jar"
+healthcheckPath = "/actuator/health"
+restartPolicyType = "ON_FAILURE"
