@@ -93,8 +93,9 @@ public class GarminService {
         headers.set("Authorization", "Basic " + auth);
 
         String body = String.format(
-            "grant_type=authorization_code&code=%s&state=%s&code_verifier=%s&redirect_uri=%s",
-            request.getCode(), request.getState(), oidcState.getCodeVerifier(), redirectUri);
+            "grant_type=authorization_code&code=%s&code_verifier=%s&redirect_uri=%s",
+            request.getCode(), oidcState.getCodeVerifier(), redirectUri);
+
 
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
         log.info("Exchanging code for token at URL: {}", tokenUrl);
