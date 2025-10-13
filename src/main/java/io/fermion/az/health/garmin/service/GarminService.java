@@ -225,12 +225,20 @@ public class GarminService {
         tokens = refreshAccessToken(tokens);
     }
 
-    // Call the existing 3-argument version
+    // Call Garmin API
     Map<String, Object> response = getDailiesSummary(tokens.getId().getGarminUserId(), date, tokens.getAccessToken());
 
-    // Convert the response to DailiesSummary[] if needed (or just log/return null if not structured)
-    return new DailiesSummary[] {}; // replace with parsed mapping if necessary
+    if (response != null && !response.isEmpty()) {
+        log.info("✅ Garmin Daily Summary fetched for user {} on {}:", userId, date);
+        log.info("Raw Garmin response: {}", response);
+    } else {
+        log.warn("⚠️ No Garmin Daily Summary found for user {} on {}", userId, date);
     }
+
+    // You can later parse this into DailiesSummary[] if you want
+    return new DailiesSummary[] {};
+}
+    
     private GarminUserTokens refreshAccessToken(GarminUserTokens tokens) {
         if (tokens.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new GarminApiException("Refresh token expired. User needs to re-authenticate.");
