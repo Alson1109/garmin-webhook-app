@@ -1,5 +1,4 @@
 [build]
-builder = "paketobuildpacks/builder:base"
 buildCommand = "mvn clean package -DskipTests"
 env = { BP_JVM_VERSION = "17" }
 
