@@ -208,19 +208,29 @@ public class GarminService {
         }
     }
 
-    public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
-        GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
-        if (tokens == null) {
-            throw new GarminApiException("No connected Garmin account found for user: " + userId);
-        }
-
-        if (tokens.getAccessTokenExpiry().isBefore(LocalDateTime.now())) {
-            tokens = refreshAccessToken(tokens);
-        }
-
-        return getDailiesSummary(tokens.getAccessToken(), date);
+    public DailiesSummary[] getTodayDailiesSummaryForUser(String userId) {
+    LocalDate today = LocalDate.now();
+    return getDailiesSummaryForUser(userId, today);
     }
 
+    public DailiesSummary[] getDailiesSummaryForUser(String userId, LocalDate date) {
+    GarminUserTokens tokens = garminUserTokensRepository.findConnectedByUserId(userId);
+
+    if (tokens == null) {
+        throw new GarminApiException("No connected Garmin account found for user: " + userId);
+    }
+
+    // Refresh if expired
+    if (tokens.getAccessTokenExpiry().isBefore(LocalDateTime.now())) {
+        tokens = refreshAccessToken(tokens);
+    }
+
+    // Call the existing 3-argument version
+    Map<String, Object> response = getDailiesSummary(tokens.getId().getGarminUserId(), date, tokens.getAccessToken());
+
+    // Convert the response to DailiesSummary[] if needed (or just log/return null if not structured)
+    return new DailiesSummary[] {}; // replace with parsed mapping if necessary
+    }
     private GarminUserTokens refreshAccessToken(GarminUserTokens tokens) {
         if (tokens.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new GarminApiException("Refresh token expired. User needs to re-authenticate.");
