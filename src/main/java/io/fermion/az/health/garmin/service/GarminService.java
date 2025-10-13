@@ -159,6 +159,14 @@ public class GarminService {
         }
     }
 
+    public GarminUserTokens handleOAuthCallback(String code, String state) {
+    AuthorizationRequest request = new AuthorizationRequest();
+    request.setCode(code);
+    request.setState(state);
+    return exchangeCodeForToken(request);
+}
+
+
     private UserIdResponse fetchUserId(String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
@@ -359,4 +367,10 @@ public class GarminService {
             throw new RuntimeException("SHA-256 algorithm not available", e);
         }
     }
+
+    private String generateRandomState() {
+    return UUID.randomUUID().toString();
+}
+    
+
 }
