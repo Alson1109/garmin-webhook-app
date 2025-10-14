@@ -365,4 +365,13 @@ public class GarminController {
     
     return data;
   }
+
+  @PostMapping("/dailies")
+  public ResponseEntity<Void> handleDailies(@RequestBody Map<String, Object> body,
+                                            @RequestHeader Map<String, String> headers) {
+    // Log headers + body so we can confirm Garmin is pushing
+    log.info("📬 DAILIES webhook headers: {}", headers);
+    log.info("📬 DAILIES webhook body: {}", body);
+    return ResponseEntity.ok().build();
+  }
 }
