@@ -14,6 +14,10 @@ COPY src ./src
 # Package the app (skip tests to speed up build)
 RUN mvn clean package -DskipTests
 
+# Move only the Spring Boot fat jar to a predictable location so COPY works
+RUN JAR_FILE=$(ls target/*.jar | grep -v 'original-' | grep -v 'plain') \
+    && mv "$JAR_FILE" app.jar
+
 # ===========================
 # 2️⃣ RUNTIME STAGE
 # ===========================
@@ -21,7 +25,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Copy the built JAR from the build stage
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /app/app.jar app.jar
 
 # Expose the port used by Spring Boot
 EXPOSE 8080
