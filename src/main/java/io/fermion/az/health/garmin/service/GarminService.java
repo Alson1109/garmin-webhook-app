@@ -83,54 +83,56 @@ public class GarminService {
     // ======================
 
     public GarminUserTokens exchangeCodeForToken(AuthorizationRequest request) {
-        OidcState oidcState = oidcStateRepository.findById(request.getState())
-                .orElseThrow(() -> new GarminApiException("Invalid state: " + request.getState()));
-        String debiUserId = oidcState.getUserId();
+    OidcState oidcState = oidcStateRepository.findById(request.getState())
+            .orElseThrow(() -> new GarminApiException("Invalid state: " + request.getState()));
+    String debiUserId = oidcState.getUserId();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        String auth = Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes());
-        headers.set("Authorization", "Basic " + auth);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+    // Do NOT set Authorization header for PKCE flow (no client_secret)
+    MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("client_id", clientId);
+    form.add("code", request.getCode());
+    form.add("code_verifier", oidcState.getCodeVerifier());
+    form.add("grant_type", "authorization_code");
+    form.add("redirect_uri", redirectUri);
 
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "authorization_code");
-        form.add("code", request.getCode());
-        form.add("redirect_uri", redirectUri);
-        form.add("code_verifier", oidcState.getCodeVerifier());
+    HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
 
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
-        log.info("Exchanging code for token at URL: {}", tokenUrl);
+    try {
+        log.info("📡 Exchanging authorization code for tokens at {}", tokenUrl);
+        ResponseEntity<TokenResponse> response =
+                restTemplate.postForEntity(tokenUrl, entity, TokenResponse.class);
 
-        try {
-            ResponseEntity<TokenResponse> response = restTemplate.postForEntity(tokenUrl, entity, TokenResponse.class);
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                TokenResponse tokenResponse = response.getBody();
-                log.info("✅ Successfully received tokens from Garmin");
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            TokenResponse tokenResponse = response.getBody();
+            log.info("✅ Successfully received tokens from Garmin");
 
-                UserIdResponse userIdResponse = fetchUserId(tokenResponse.getAccessToken());
-                String garminUserId = userIdResponse.getUserId();
+            UserIdResponse userIdResponse = fetchUserId(tokenResponse.getAccessToken());
+            String garminUserId = userIdResponse.getUserId();
 
-                GarminUserTokensId tokenId = new GarminUserTokensId(debiUserId, garminUserId);
-                GarminUserTokens tokens = new GarminUserTokens();
-                tokens.setId(tokenId);
-                tokens.setAccessToken(tokenResponse.getAccessToken());
-                tokens.setRefreshToken(tokenResponse.getRefreshToken());
-                tokens.setAccessTokenExpiry(LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn()));
-                tokens.setRefreshTokenExpiry(LocalDateTime.now().plusSeconds(tokenResponse.getRefreshTokenExpiresIn()));
-                tokens.setCreatedAt(LocalDateTime.now());
-                tokens.setLastModifiedAt(LocalDateTime.now());
-                tokens.setConnectStatus(GarminUserTokens.ConnectStatus.CONNECTED);
+            GarminUserTokensId tokenId = new GarminUserTokensId(debiUserId, garminUserId);
+            GarminUserTokens tokens = new GarminUserTokens();
+            tokens.setId(tokenId);
+            tokens.setAccessToken(tokenResponse.getAccessToken());
+            tokens.setRefreshToken(tokenResponse.getRefreshToken());
+            tokens.setAccessTokenExpiry(LocalDateTime.now().plusSeconds(tokenResponse.getExpiresIn()));
+            tokens.setRefreshTokenExpiry(LocalDateTime.now().plusSeconds(tokenResponse.getRefreshTokenExpiresIn()));
+            tokens.setCreatedAt(LocalDateTime.now());
+            tokens.setLastModifiedAt(LocalDateTime.now());
+            tokens.setConnectStatus(GarminUserTokens.ConnectStatus.CONNECTED);
 
-                return garminUserTokensRepository.save(tokens);
-            } else {
-                throw new GarminApiException("Token exchange failed: " + response.getStatusCode());
-            }
-        } catch (Exception e) {
-            log.error("❌ Token exchange failed: {}", e.getMessage());
-            throw new GarminApiException("Token exchange failed: " + e.getMessage());
+            return garminUserTokensRepository.save(tokens);
+        } else {
+            log.error("❌ Token exchange failed with status: {}", response.getStatusCode());
+            throw new GarminApiException("Token exchange failed: " + response.getStatusCode());
         }
+    } catch (Exception e) {
+        log.error("❌ Token exchange failed: {}", e.getMessage());
+        throw new GarminApiException("Token exchange failed: " + e.getMessage());
     }
-
+}
+    
     public GarminUserTokens handleOAuthCallback(String code, String state) {
     AuthorizationRequest request = new AuthorizationRequest();
     request.setCode(code);
