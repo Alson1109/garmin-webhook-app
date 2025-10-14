@@ -100,7 +100,6 @@ public class GarminService {
     form.add("redirect_uri", redirectUri);
 
     HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
-
     log.info("📡 Exchanging authorization code for tokens at {}", tokenUrl);
 
     try {
