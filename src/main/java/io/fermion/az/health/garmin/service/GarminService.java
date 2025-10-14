@@ -91,10 +91,11 @@ public class GarminService {
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
     // Do NOT set Authorization header for PKCE flow (no client_secret)
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("grant_type", "authorization_code");
     form.add("client_id", clientId);
+    form.add("client_secret", clientSecret);
     form.add("code", request.getCode());
     form.add("code_verifier", oidcState.getCodeVerifier());
-    form.add("grant_type", "authorization_code");
     form.add("redirect_uri", redirectUri);
 
     HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
