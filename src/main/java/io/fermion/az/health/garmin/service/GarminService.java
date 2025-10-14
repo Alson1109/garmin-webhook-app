@@ -165,20 +165,30 @@ public class GarminService {
     // GARMIN DATA FETCH
     // ======================
 
-    public Map<String, Object> getDailiesSummary(String userId, LocalDate date, String accessToken) {
-    long startOfDay = date.atStartOfDay().toEpochSecond(ZoneOffset.UTC);
-    String url = String.format("%s/dailies?uploadStartTimeInSeconds=%d&userId=%s",
-            GARMIN_API_BASE, startOfDay, userId);
+   public Map<String, Object> getDailiesSummary(String garminUserId, LocalDate date, String accessToken) {
+    long start = date.atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+    long end   = date.plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC) - 1; // 23:59:59
+
+    // Use the injected property, not a hard-coded base
+    String url = String.format(
+        "%s?userId=%s&uploadStartTimeInSeconds=%d&uploadEndTimeInSeconds=%d",
+        dailiesUrl, garminUserId, start, end
+    );
 
     HttpHeaders headers = new HttpHeaders();
     headers.setBearerAuth(accessToken);
     headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 
     HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+    // Extra debug to see the exact URL & body Garmin returns
+    log.info("➡️  GET {}", url);
     ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+    log.info("⬅️  Status: {}, Body: {}", response.getStatusCode(), response.getBody());
 
     return response.getBody();
 }
+
 
 
     public void logDailiesSummary(String userId, LocalDate date, String accessToken) {
