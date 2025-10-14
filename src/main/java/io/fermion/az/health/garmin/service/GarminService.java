@@ -89,7 +89,8 @@ public class GarminService {
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-    // Do NOT set Authorization header for PKCE flow (no client_secret)
+
+    // ✅ Garmin PKCE flow requires client_secret in form body, not Authorization header
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("grant_type", "authorization_code");
     form.add("client_id", clientId);
@@ -100,10 +101,10 @@ public class GarminService {
 
     HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
 
+    log.info("📡 Exchanging authorization code for tokens at {}", tokenUrl);
+
     try {
-        log.info("📡 Exchanging authorization code for tokens at {}", tokenUrl);
-        ResponseEntity<TokenResponse> response =
-                restTemplate.postForEntity(tokenUrl, entity, TokenResponse.class);
+        ResponseEntity<TokenResponse> response = restTemplate.postForEntity(tokenUrl, entity, TokenResponse.class);
 
         if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
             TokenResponse tokenResponse = response.getBody();
@@ -125,9 +126,10 @@ public class GarminService {
 
             return garminUserTokensRepository.save(tokens);
         } else {
-            log.error("❌ Token exchange failed with status: {}", response.getStatusCode());
+            log.error("❌ Token exchange failed. HTTP status: {}", response.getStatusCode());
             throw new GarminApiException("Token exchange failed: " + response.getStatusCode());
         }
+
     } catch (Exception e) {
         log.error("❌ Token exchange failed: {}", e.getMessage());
         throw new GarminApiException("Token exchange failed: " + e.getMessage());
