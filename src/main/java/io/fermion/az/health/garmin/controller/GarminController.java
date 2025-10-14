@@ -15,7 +15,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/garmin")
+@RequestMapping("/api/garmin/webhook")
 @RequiredArgsConstructor
 public class GarminController {
 
