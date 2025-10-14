@@ -49,22 +49,22 @@ public class GarminService {
     private static final String GARMIN_API_BASE = "https://apis.garmin.com/wellness-api/rest";
     private static final Logger log = LoggerFactory.getLogger(GarminService.class);
 
-    @Value("${garmin.client.id}")
+    @Value("${GARMIN_CLIENT_ID:${garmin.client.id:}}")
     private String clientId;
 
-    @Value("${garmin.client.secret}")
+    @Value("${GARMIN_CLIENT_SECRET:${garmin.client.secret:}}")
     private String clientSecret;
 
-    @Value("${garmin.redirect.uri}")
+    @Value("${GARMIN_REDIRECT_URI:${garmin.redirect.uri:https://garmin-webhook-app-production.up.railway.app/api/garmin/auth/callback}}")
     private String redirectUri;
 
-    @Value("${garmin.token.url}")
+    @Value("${GARMIN_TOKEN_URL:${garmin.token.url:https://diauth.garmin.com/di-oauth2-service/oauth/token}}")
     private String tokenUrl;
 
-    @Value("${garmin.user.id.url}")
+    @Value("${GARMIN_USER_ID_URL:${garmin.user.id.url:https://apis.garmin.com/wellness-api/rest/user/id}}")
     private String userIdUrl;
 
-    @Value("${garmin.dailies.url}")
+    @Value("${GARMIN_DAILIES_URL:${garmin.dailies.url:https://apis.garmin.com/wellness-api/rest/dailies}}")
     private String dailiesUrl;
 
     @PostConstruct
