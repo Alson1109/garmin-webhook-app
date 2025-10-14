@@ -165,19 +165,24 @@ public class GarminService {
     // GARMIN DATA FETCH
     // ======================
 
-    public Map<String, Object> getDailiesSummary(String userId, LocalDate date, String accessToken) {
-        long startOfDay = date.atStartOfDay().toEpochSecond(ZoneOffset.UTC);
-        String url = String.format("%s/dailies/%s?uploadStartTimeInSeconds=%d",
-                GARMIN_API_BASE, userId, startOfDay);
+    public Map<String, Object> getDailiesSummary(String garminUserId, LocalDate date, String accessToken) {
+    long start = date.atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+    long end   = date.plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC) - 1; // 23:59:59
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+    // Build from the configured property, not a hard-coded base
+    String url = String.format(
+        "%s/%s?uploadStartTimeInSeconds=%d&uploadEndTimeInSeconds=%d",
+        dailiesUrl, garminUserId, start, end
+    );
 
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-        return response.getBody();
-    }
+    HttpHeaders headers = new HttpHeaders();
+    headers.setBearerAuth(accessToken);
+    headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+    HttpEntity<Void> entity = new HttpEntity<>(headers);
+    ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+    return response.getBody();
+}
 
     public void logDailiesSummary(String userId, LocalDate date, String accessToken) {
         try {
