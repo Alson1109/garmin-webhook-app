@@ -44,25 +44,13 @@ public class GarminWebhookController {
 
     /** Dailies push from Garmin (configure this URL in the Garmin portal) */
     @PostMapping("/dailies")
-    public ResponseEntity<String> handleDailiesWebhook(
-            @RequestHeader(value = "X-Webhook-Secret", required = false) String sig,
-            @RequestBody(required = false) Map<String, Object> payload) {
+public ResponseEntity<Void> handleDailiesWebhook(
+    @RequestBody List<Map<String, Object>> payload) {
 
-        if (!isAuthorized(sig)) {
-            log.warn("🔒 DAILIES rejected (bad secret).");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
-        }
-        if (CollectionUtils.isEmpty(payload)) {
-            log.info("📬 DAILIES ping/empty payload");
-            return ResponseEntity.ok("ok");
-        }
-
-        String garminUserId = String.valueOf(payload.get("userId"));
-        cache.store(garminUserId, payload);  // store latest so the app can read it
-        logCompact("DAILIES", payload);
-        return ResponseEntity.ok("ok");
-    }
-
+  log.info("📬 DAILIES received {} item(s): {}", payload != null ? payload.size() : 0, payload);
+  return ResponseEntity.ok().build();
+}
+    
     /** Optional: activities webhook (enable in portal if needed) */
     @PostMapping("/activities")
     public ResponseEntity<String> handleActivities(
