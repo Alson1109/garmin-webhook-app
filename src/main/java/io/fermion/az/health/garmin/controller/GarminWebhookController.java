@@ -1,5 +1,6 @@
 package io.fermion.az.health.garmin.controller;
 
+import io.fermion.az.health.garmin.webhook.WebhookCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,22 +17,22 @@ public class GarminWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(GarminWebhookController.class);
 
-    /**
-     * Optional lightweight auth: set a shared secret in env/properties to enable.
-     * Example:
-     *   WEBHOOK_SHARED_SECRET=superlongrandom
-     * Then configure Garmin to send this header (if supported), or keep it empty to disable.
-     */
+    private final WebhookCache cache;
+
+    public GarminWebhookController(WebhookCache cache) {
+        this.cache = cache;
+    }
+
+    // Optional shared secret (leave empty to disable)
     @Value("${webhook.shared.secret:}")
     private String sharedSecret;
 
     private boolean isAuthorized(String provided) {
-        if (sharedSecret == null || sharedSecret.isBlank()) return true; // auth disabled
+        if (sharedSecret == null || sharedSecret.isBlank()) return true;
         return sharedSecret.equals(provided);
     }
 
     private void logCompact(String label, Map<String, Object> body) {
-        // Log the whole body but also pull common fields up front for quick scanning in Railway
         String userId = body != null ? String.valueOf(body.getOrDefault("userId", "")) : "";
         String summaryId = body != null ? String.valueOf(body.getOrDefault("summaryId", "")) : "";
         String calendarDate = body != null ? String.valueOf(body.getOrDefault("calendarDate", "")) : "";
@@ -41,87 +42,92 @@ public class GarminWebhookController {
         log.info("📦 {} FULL: {}", label, body);
     }
 
-    // -------- DAILIES (wellness daily summary) --------
-    // Garmin Portal -> Endpoint Configuration -> HEALTH – Dailies:
-    // https://<your-host>/api/garmin/webhook/dailies
+    /** Dailies push from Garmin (configure this URL in the Garmin portal) */
     @PostMapping("/dailies")
-    public ResponseEntity<String> dailies(
+    public ResponseEntity<String> handleDailiesWebhook(
             @RequestHeader(value = "X-Webhook-Secret", required = false) String sig,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> payload) {
 
         if (!isAuthorized(sig)) {
             log.warn("🔒 DAILIES rejected (bad secret).");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
         }
-        if (CollectionUtils.isEmpty(body)) {
+        if (CollectionUtils.isEmpty(payload)) {
             log.info("📬 DAILIES ping/empty payload");
             return ResponseEntity.ok("ok");
         }
-        logCompact("DAILIES", body);
+
+        String garminUserId = String.valueOf(payload.get("userId"));
+        cache.store(garminUserId, payload);  // store latest so the app can read it
+        logCompact("DAILIES", payload);
         return ResponseEntity.ok("ok");
     }
 
-    // -------- ACTIVITIES (workouts) --------
-    // If you enable Activities in the Garmin Portal:
-    // https://<your-host>/api/garmin/webhook/activities
+    /** Optional: activities webhook (enable in portal if needed) */
     @PostMapping("/activities")
-    public ResponseEntity<String> activities(
+    public ResponseEntity<String> handleActivities(
             @RequestHeader(value = "X-Webhook-Secret", required = false) String sig,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> payload) {
 
-        if (!isAuthorized(sig)) {
-            log.warn("🔒 ACTIVITIES rejected (bad secret).");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
-        }
-        if (CollectionUtils.isEmpty(body)) {
+        if (!isAuthorized(sig)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
+        if (CollectionUtils.isEmpty(payload)) {
             log.info("📬 ACTIVITIES ping/empty payload");
             return ResponseEntity.ok("ok");
         }
-        // Common activity fields: userId, activityId, startTimeInSeconds, durationInSeconds, distanceInMeters, etc.
-        log.info("📬 ACTIVITIES | userId={} activityId={}",
-                body != null ? body.get("userId") : null,
-                body != null ? body.get("activityId") : null);
-        log.info("📦 ACTIVITIES FULL: {}", body);
+        log.info("📬 ACTIVITIES | userId={} activityId={}", payload.get("userId"), payload.get("activityId"));
+        log.info("📦 ACTIVITIES FULL: {}", payload);
         return ResponseEntity.ok("ok");
     }
 
-    // -------- REGISTRATION (optional) --------
-    // Some Garmin flows send registration/change notifications here if configured
+    /** Optional: registration webhook */
     @PostMapping("/registration")
-    public ResponseEntity<String> registration(
+    public ResponseEntity<String> handleRegistration(
             @RequestHeader(value = "X-Webhook-Secret", required = false) String sig,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> payload) {
 
-        if (!isAuthorized(sig)) {
-            log.warn("🔒 REGISTRATION rejected (bad secret).");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
-        }
-        if (CollectionUtils.isEmpty(body)) {
+        if (!isAuthorized(sig)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
+        if (CollectionUtils.isEmpty(payload)) {
             log.info("📬 REGISTRATION ping/empty payload");
             return ResponseEntity.ok("ok");
         }
-        log.info("📬 REGISTRATION event: {}", body);
+        log.info("📬 REGISTRATION event: {}", payload);
         return ResponseEntity.ok("ok");
     }
 
-    // -------- Catch-all POST (some tenants send pings to base path) --------
+    /** Catch-all POST (some tenants send pings to the base path) */
     @PostMapping
-    public ResponseEntity<String> root(
+    public ResponseEntity<String> handleRoot(
             @RequestHeader(value = "X-Webhook-Secret", required = false) String sig,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) Map<String, Object> payload) {
 
-        if (!isAuthorized(sig)) {
-            log.warn("🔒 ROOT webhook rejected (bad secret).");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
-        }
-        log.info("📬 ROOT webhook: {}", body);
+        if (!isAuthorized(sig)) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("bad secret");
+        log.info("📬 ROOT webhook: {}", payload);
         return ResponseEntity.ok("ok");
     }
 
-    // -------- Simple GET to verify reachability --------
+    /** Quick reachability check in browser */
     @GetMapping("/ping")
     public ResponseEntity<Map<String, Object>> ping() {
         log.info("✅ Garmin webhook /ping received");
         return ResponseEntity.ok(Map.of("status", "ok", "timestamp", System.currentTimeMillis()));
+    }
+
+    /** NEW: let the app read the latest pushed dailies (no DB required) */
+    @GetMapping("/last")
+    public ResponseEntity<Map<String, Object>> last(@RequestParam String garminUserId) {
+        Map<String, Object> payload = cache.get(garminUserId);
+        if (payload == null) {
+            return ResponseEntity.ok(Map.of("success", false, "message", "No data yet"));
+        }
+        Map<String, Object> summary = Map.of(
+                "calendarDate", payload.get("calendarDate"),
+                "steps", payload.get("steps"),
+                "distanceInMeters", payload.get("distanceInMeters"),
+                "activeKilocalories", payload.get("activeKilocalories"),
+                "bmrKilocalories", payload.get("bmrKilocalories"),
+                "avgHr", payload.get("averageHeartRateInBeatsPerMinute"),
+                "restHr", payload.get("restingHeartRateInBeatsPerMinute")
+        );
+        return ResponseEntity.ok(Map.of("success", true, "data", summary, "raw", payload));
     }
 }
